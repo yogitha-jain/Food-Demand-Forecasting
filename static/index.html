@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodCast — AI Demand Forecasting</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #151820;
+    --border:   #232736;
+    --accent:   #f0c040;
+    --accent2:  #4ade80;
+    --text:     #e8eaf0;
+    --muted:    #6b7280;
+    --low:      #4ade80;
+    --medium:   #f0c040;
+    --high:     #f87171;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .badge {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* Hero */
+  .hero {
+    margin-bottom: 40px;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  /* Main layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 680px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* Form */
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface); }
+
+  /* Toggle group */
+  .toggle-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .toggle-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .toggle-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d0f14;
+    font-weight: 600;
+  }
+
+  /* Predict button */
+  .btn-predict {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    color: #0d0f14;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn-predict:hover  { opacity: 0.88; }
+  .btn-predict:active { transform: scale(0.98); }
+  .btn-predict:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Result panel */
+  .result-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .result-main {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    text-align: center;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--accent);
+    margin-bottom: 4px;
+    letter-spacing: -2px;
+    transition: all 0.4s;
+  }
+
+  .result-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .result-empty {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  /* Stock indicator */
+  .stock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s;
+  }
+
+  .stock-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .stock-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .stock-dot.low    { background: var(--low);    box-shadow: 0 0 8px var(--low); }
+  .stock-dot.medium { background: var(--medium);  box-shadow: 0 0 8px var(--medium); }
+  .stock-dot.high   { background: var(--high);    box-shadow: 0 0 8px var(--high); }
+
+  .stock-info h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .stock-info p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s 0.1s;
+  }
+
+  .stats-row.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Error */
+  .error-box {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: var(--high);
+    display: none;
+    margin-top: 8px;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+    margin: 0 auto;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Footer */
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo">Food<span>Cast</span></div>
+    <div class="badge">XGBoost · RMSE 160.82</div>
+  </header>
+
+  <div class="hero">
+    <h1>Predict <em>meal demand</em><br>before it happens.</h1>
+    <p>Enter center and meal details to forecast weekly orders and get inventory recommendations powered by XGBoost.</p>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- Input Form -->
+    <div class="card">
+      <div class="card-title">Forecast Inputs</div>
+
+      <div class="form-group">
+        <label>Week Number (1–145)</label>
+        <input type="number" id="week" value="130" min="1" max="145">
+      </div>
+
+      <div class="form-group">
+        <label>Center ID</label>
+        <input type="number" id="center_id" value="55" min="1">
+      </div>
+
+      <div class="form-group">
+        <label>Meal ID</label>
+        <input type="number" id="meal_id" value="1885" min="1">
+      </div>
+
+      <div class="form-group">
+        <label>Checkout Price (₹)</label>
+        <input type="number" id="checkout_price" value="136" min="0" step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label>Base Price (₹)</label>
+        <input type="number" id="base_price" value="152" min="0" step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label>Average Recent Orders</label>
+        <input type="number" id="avg_recent_orders" value="300" min="0">
+      </div>
+
+      <div class="form-group">
+        <label>Email Promotion</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" id="email-no" onclick="setToggle('email', 0)" >No</button>
+          <button class="toggle-btn" id="email-yes" onclick="setToggle('email', 1)">Yes</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Homepage Featured</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" id="home-no" onclick="setToggle('home', 0)">No</button>
+          <button class="toggle-btn" id="home-yes" onclick="setToggle('home', 1)">Yes</button>
+        </div>
+      </div>
+
+      <button class="btn-predict" onclick="predict()" id="predict-btn">
+        Run Forecast
+      </button>
+      <div class="error-box" id="error-box"></div>
+    </div>
+
+    <!-- Result Panel -->
+    <div class="result-panel">
+
+      <div class="result-main" id="result-main">
+        <div class="spinner" id="spinner"></div>
+        <div class="result-empty" id="result-empty">
+          Fill in the inputs and click<br><strong>Run Forecast</strong> to see predictions.
+        </div>
+        <div id="result-content" style="display:none; text-align:center;">
+          <div class="result-number" id="result-number">0</div>
+          <div class="result-label">Predicted Orders / Week</div>
+        </div>
+      </div>
+
+      <div class="stock-card" id="stock-card">
+        <div class="stock-dot" id="stock-dot"></div>
+        <div class="stock-info">
+          <h3 id="stock-level">—</h3>
+          <p id="stock-rec">—</p>
+        </div>
+      </div>
+
+      <div class="stats-row" id="stats-row">
+        <div class="stat-box">
+          <div class="stat-value" id="stat-discount">—</div>
+          <div class="stat-label">Discount %</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="stat-week">—</div>
+          <div class="stat-label">Week No.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    FoodCast · AI Demand Forecasting · Infotact Internship Project · XGBoost Model
+  </footer>
+
+</div>
+
+<script>
+  // Toggle state
+  const toggleState = { email: 0, home: 0 };
+
+  // Set initial active states
+  document.getElementById('email-no').classList.add('active');
+  document.getElementById('home-no').classList.add('active');
+
+  function setToggle(key, val) {
+    toggleState[key] = val;
+    if (key === 'email') {
+      document.getElementById('email-no').classList.toggle('active', val === 0);
+      document.getElementById('email-yes').classList.toggle('active', val === 1);
+    } else {
+      document.getElementById('home-no').classList.toggle('active', val === 0);
+      document.getElementById('home-yes').classList.toggle('active', val === 1);
+    }
+  }
+
+  async function predict() {
+    const btn     = document.getElementById('predict-btn');
+    const spinner = document.getElementById('spinner');
+    const errorBox= document.getElementById('error-box');
+
+    // Clear error
+    errorBox.style.display = 'none';
+
+    // Show loading
+    btn.disabled = true;
+    btn.textContent = 'Forecasting...';
+    spinner.style.display = 'block';
+    document.getElementById('result-empty').style.display = 'none';
+    document.getElementById('result-content').style.display = 'none';
+
+    const payload = {
+      week:                 parseInt(document.getElementById('week').value),
+      center_id:            parseInt(document.getElementById('center_id').value),
+      meal_id:              parseInt(document.getElementById('meal_id').value),
+      checkout_price:       parseFloat(document.getElementById('checkout_price').value),
+      base_price:           parseFloat(document.getElementById('base_price').value),
+      avg_recent_orders:    parseFloat(document.getElementById('avg_recent_orders').value),
+      emailer_for_promotion: toggleState.email,
+      homepage_featured:     toggleState.home,
+    };
+
+    try {
+      const res  = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      // Show result
+      spinner.style.display = 'none';
+      document.getElementById('result-content').style.display = 'block';
+
+      // Animate number
+      animateNumber('result-number', data.predicted_orders);
+
+      // Stock card
+      const stockCard = document.getElementById('stock-card');
+      const dot       = document.getElementById('stock-dot');
+      dot.className   = `stock-dot ${data.color}`;
+      document.getElementById('stock-level').textContent = data.stock_level;
+      document.getElementById('stock-rec').textContent   = data.recommendation;
+      stockCard.classList.add('visible');
+
+      // Stats
+      const statsRow = document.getElementById('stats-row');
+      document.getElementById('stat-discount').textContent = data.discount_pct + '%';
+      document.getElementById('stat-week').textContent     = payload.week;
+      statsRow.classList.add('visible');
+
+    } catch (err) {
+      spinner.style.display = 'none';
+      document.getElementById('result-empty').style.display = 'block';
+      errorBox.style.display = 'block';
+      errorBox.textContent   = 'Error: ' + err.message + '. Make sure Flask server is running on port 5000.';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Run Forecast';
+  }
+
+  function animateNumber(id, target) {
+    const el  = document.getElementById(id);
+    const dur = 800;
+    const start = performance.now();
+    const from  = 0;
+
+    function step(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(from + (target - from) * ease).toLocaleString();
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+</script>
+</body>
+</html>
